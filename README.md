@@ -50,7 +50,7 @@ Block ALL bash tool execution and require explicit user approval for every comma
 - **Selector UI**: Arrow-key navigable selector with 5 options per command:
   - ✅ **Approve** — run this command once
   - ⚠️ **Deny (try something else)** — block this command, agent can try alternative approach
-  - ⭐ **Approve All Session** — auto-approve all future safe commands (patterns.yaml blocked rules still enforced)
+  - ⭐ **Approve All** — auto-approve future occurrences of THIS specific command (session-scoped, cleared on next prompt)
   - 📋 **Allow & Whitelist** — remember this command pattern for future sessions
   - ❌ **Abort (stop all execution)** — block this command AND lock all future bash commands until reset
 - **patterns.yaml always enforced**: Commands matching blocked patterns are never allowed, even with approve-all or whitelist
@@ -206,7 +206,7 @@ When the agent tries to run a bash command, a selector appears with the command 
 
  ▶ ✅ Approve this command
    📋 Allow & Whitelist (remember for future)
-   ⭐ Approve ALL session (skip future prompts for safe commands)
+   ⭐ Approve ALL (auto-approve future occurrences of THIS command)
    ⚠️ Deny (try something else)
    ❌ Abort (stop all execution)
 
@@ -241,9 +241,9 @@ Then for `git commit -m "fix: resolve path issue"`:
 
 Each selector shows only the sub-command being approved — with an accent-colored **`Command:`** label and a step indicator like `(1/2)`. If you deny or abort any sub-command, the entire chain is blocked.
 
-### Approve All Session
+### Approve All
 
-Selecting ⭐ **Approve All Session** auto-approves future bash commands that are not blocked by `patterns.yaml`. Blocked patterns (like `rm -rf`, `sudo`, etc.) are **always** enforced.
+Selecting ⭐ **Approve All** adds the current command's regex pattern to an in-memory session-approved list. Future occurrences of the **same command** during the current prompt are auto-approved — no more prompts for that command. This is session-scoped (not persisted to YAML) and cleared when a new prompt starts. `patterns.yaml` blocked rules (like `rm -rf`, `sudo`, etc.) are **always** enforced regardless.
 
 ### Abort
 

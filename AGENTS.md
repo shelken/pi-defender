@@ -37,6 +37,9 @@ is not copied by tsc.
 ### Event flow
 
 ```
+pi.on("message_start") → clears session-approved patterns + aborted flag
+pi.on("message_end") → clears aborted flag
+
 pi.on("tool_call") 3 handlers registered:
   1. Bash handler     → checkCommand() → pattern check → strict mode → normal
                          Deny/Abort calls ctx.abort() to cancel agent's turn
@@ -46,7 +49,7 @@ pi.on("tool_call") 3 handlers registered:
                          Reads allowed during abort for diagnostics
 
 pi.on("session_start") → shows "Defender vX.Y.Z active 🔒 Strict Mode ON" notification
-pi.on("session_shutdown") → clears cached config
+pi.on("session_shutdown") → clears cached config, aborted flag, session-approved patterns
 ```
 
 ## Key concepts
@@ -74,6 +77,19 @@ Returns `{ blocked, reason }`. Path-based checks return `{ blocked, reason }`.
 - **generateWhitelistPattern(command)** — escapes regex-special chars, returns a literal-match pattern
 - **addPatternToWhitelist(cwd, pattern)** — reads/creates `.pi/patterns.yaml`, appends pattern to `strictModeWhiteList`, writes back. Returns `{ added, reason }`. Auto-creates `.pi/` dir and file as needed.
 
+### Session-approved patterns (index.ts)
+
+When the user selects "⭐ Approve ALL" in strict mode, the command's regex pattern
+is added to `sessionApprovedPatterns[]` — an in-memory array (NOT persisted to YAML).
+Future Bash commands matching any session-approved pattern are auto-approved for the
+remainder of the current prompt.
+
+- **checkSessionApproved(command, patterns)** → `{ matched }` — tests command against session-approved patterns (same logic as `checkWhitelist`)
+- Patterns are cleared on `message_start` (new agent turn) and `session_shutdown`
+- `/defender:strict on|off|toggle` also clears session-approved patterns
+- Displayed in `/defender:status` as "Session-approved patterns: N"
+- Different from permanent whitelist: session-approved is temporary, per-prompt, not written to YAML
+
 ### Bash handler tiers (index.ts)
 
 Chained commands (`&&`, `||`, `;`) are split via `splitChainCommands()` and each
@@ -90,11 +106,13 @@ for each subCmd in chain:
 2. ABORTED STATE → blocks all bash with 🛡️❌ message
    - Also blocks Write/Edit tools (separate handler checks aborted flag)
 
-3. STRICT MODE (ON by default) → whitelist check → approveAll check → strictModePrompt()
+3. STRICT MODE (ON by default) → whitelist check → session-approved check → strictModePrompt()
      selector: ✅ Approve / 📋 Whitelist / ⭐ Approve All / ⚠️ Deny / ❌ Abort
    - Whitelist check runs first: if subCmd matches strictModeWhiteList pattern → auto-approve
+   - Session-approved check: if subCmd matches a previously "Approve All"-ed pattern → auto-approve
    - Whitelist save: generates regex from subCmd, writes to .pi/patterns.yaml, reloads config
-   - approveAllSession flag auto-approves safe commands
+   - "Approve All": adds subCmd regex pattern to in-memory sessionApprovedPatterns[]
+     — future occurrences of the SAME command auto-approve (cleared on new prompt)
    - Abort → calls ctx.abort() + sets aborted=true
    - Deny or Abort on ANY sub-command → full chain blocked
 
@@ -105,8 +123,10 @@ for each subCmd in chain:
 
 ### Command display format
 
-Both prompts use `formatCommandForDisplay(command)` (`src/index.ts`) to render the command:
-- Single command text with truncation at 300 chars
+Both prompts use `formatCommandForDisplay(command, maxWidth?)` (`src/index.ts`) to render the command:
+- When `maxWidth` is provided (inside `render(width)`), uses `truncateToWidth()` from `@earendil-works/pi-tui` for ANSI-aware width-based truncation to `width - 2` (accounting for 2-space indent)
+- Without `maxWidth` (fallback confirm dialog), truncates at 300 chars
+- This prevents Pi crashes from "Rendered line exceeds terminal width" on narrow terminals
 - The command text uses **`theme.fg("accent", ...)`** (accent/bold color) to stand out
 - A clear **`Command:`** label (also in accent/bold) is shown above the command text
 - When approving a sub-command from a chain, a **step indicator** like `(2/3)` appears in the title bar
@@ -176,10 +196,10 @@ A **150ms delay** runs between sub-command selectors to prevent TUI race conditi
 
 | Command | Handler |
 |---|---|
-| `/defender:status` | Shows stats + strict mode state |
+| `/defender:status` | Shows stats + strict mode state + session-approved count |
 | `/defender:reload` | Clears cached config, reloads from YAML |
 | `/defender:patterns` | Copies bundled YAML to `.pi/defender/patterns.yaml` |
-| `/defender:strict [on\|off]` | Toggles strict mode (ON by default, resets approveAll/aborted) |
+| `/defender:strict [on\|off]` | Toggles strict mode (ON by default, resets session-approved/aborted) |
 
 ## When editing patterns
 

@@ -2,6 +2,16 @@
 
 All notable changes to Pi Defender will be documented in this file.
 
+## [v1.3.2]
+
+- `fix` - **TUI crash when command exceeds terminal width** (#3): Commands longer than the terminal width caused Pi to crash with "Rendered line exceeds terminal width". Fixed by using `truncateToWidth()` from `@earendil-works/pi-tui` in `formatCommandForDisplay()` — both `patternBlockedPrompt` and `strictModePrompt` render functions now truncate commands to `width - 2` (accounting for the 2-space indent) using ANSI-aware width measurement.
+
+## [v1.3.1]
+
+- `fix` - **"Approve All" now scoped to current command** (#2): Previously selecting "⭐ Approve ALL session" set a global boolean that auto-approved ALL subsequent bash commands, effectively disabling strict mode. Now it works as a session-scoped whitelist — only auto-approves future occurrences of the SAME command during the current prompt. Session-approved patterns are cleared on each new prompt (`message_start`) and session shutdown.
+- `improve` - **Session-approved patterns shown in status**: `/defender:status` now displays the count of active session-approved patterns.
+- `improve` - **Clearer "Approve All" UI text**: Now reads "⭐ Approve ALL (auto-approve future occurrences of THIS command)" to clearly indicate per-command scope.
+
 ## [v1.3.0]
 
 - `add` - **Number key shortcuts** in both selectors (patterns.yaml & strict mode). Press `1`-`N` to select an option directly — faster than arrow navigation.

@@ -23,7 +23,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType, Theme } from "@earendil-works/pi-coding-agent";
-import { matchesKey, Key, decodeKittyPrintable } from "@earendil-works/pi-tui";
+import { matchesKey, Key, decodeKittyPrintable, truncateToWidth } from "@earendil-works/pi-tui";
 import { loadConfig, checkCommand, checkFileAccess, checkWhitelist, generateWhitelistPatterns, addPatternsToWhitelist, splitChainCommands, type Config } from "./config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -99,15 +99,20 @@ export default function (pi: ExtensionAPI) {
   }
 
   /**
-   * Format a single command for display — truncates if too long.
+   * Format a single command for display — truncates to fit terminal width.
+   * When maxWidth is provided, uses truncateToWidth for ANSI-aware truncation.
+   * Falls back to character-based truncation at 300 chars when no width given.
    */
-  function formatCommandForDisplay(command: string, maxChars: number = 300): string[] {
+  function formatCommandForDisplay(command: string, maxWidth?: number): string[] {
+    if (maxWidth !== undefined && maxWidth > 0) {
+      return [truncateToWidth(command, maxWidth)];
+    }
+    const maxChars = 300;
     const text = command.length > maxChars ? command.slice(0, maxChars - 3) + "..." : command;
     return [text];
   }
 
   async function patternBlockedPrompt(ctx: any, command: string, reason: string, stepInfo?: string): Promise<"allow" | "deny"> {
-    const cmdLines = formatCommandForDisplay(command);
     const displayReason = reason.length > 100 ? reason.slice(0, 97) + "..." : reason;
 
     if (typeof ctx.ui?.custom === "function") {
@@ -125,11 +130,12 @@ export default function (pi: ExtensionAPI) {
               const lines: string[] = [];
               const sep = "─".repeat(Math.min(width, 80));
               const stepTag = stepInfo ? ` ${stepInfo}` : "";
+              const cmdMaxWidth = Math.max(1, width - 2); // "  " indent
               lines.push(theme.fg("warning", sep));
               lines.push(theme.fg("warning", theme.bold(` 🛡️ BLOCKED by patterns.yaml${stepTag}`)));
               lines.push("");
               lines.push(theme.fg("warning", theme.bold(" Command:")));
-              for (const cmdLine of cmdLines) {
+              for (const cmdLine of formatCommandForDisplay(command, cmdMaxWidth)) {
                 lines.push(theme.fg("accent", `  ${cmdLine}`));
               }
               lines.push("");
@@ -187,7 +193,7 @@ export default function (pi: ExtensionAPI) {
 
     // Fallback: confirm dialog
     if (typeof ctx.ui?.confirm === "function") {
-      const cmdPreview = cmdLines.join("\n");
+      const cmdPreview = formatCommandForDisplay(command).join("\n");
       const title = stepInfo ? `🛡️ BLOCKED by patterns.yaml ${stepInfo}` : "🛡️ BLOCKED by patterns.yaml";
       const allowed = await ctx.ui.confirm(
         title,
@@ -205,8 +211,6 @@ export default function (pi: ExtensionAPI) {
   // ===========================================================================
 
   async function strictModePrompt(ctx: any, command: string, stepInfo?: string): Promise<"approve" | "deny" | "approve_all" | "abort" | "whitelist"> {
-    const cmdLines = formatCommandForDisplay(command);
-
     // Try custom UI selector first
     if (typeof ctx.ui?.custom === "function") {
       try {
@@ -226,12 +230,13 @@ export default function (pi: ExtensionAPI) {
               const lines: string[] = [];
               const sep = "─".repeat(Math.min(width, 80));
               const stepTag = stepInfo ? ` ${stepInfo}` : "";
+              const cmdMaxWidth = Math.max(1, width - 2); // "  " indent
               lines.push(theme.fg("warning", sep));
               lines.push(theme.fg("warning", theme.bold(` 🛡️🔒 Strict Mode — Bash Command${stepTag}`)));
               lines.push(`  ${theme.fg("muted","Run")}  ${theme.fg("mdLink", "/defender:strict off")} ${theme.fg("muted", "to turn Strict Mode off and stop these prompts to popup.")}`);
               lines.push("");
               lines.push(theme.fg("warning", theme.bold(" Command:")));
-              for (const cmdLine of cmdLines) {
+              for (const cmdLine of formatCommandForDisplay(command, cmdMaxWidth)) {
                 lines.push(theme.fg("accent", `  ${cmdLine}`));
               }
               lines.push("");
@@ -287,7 +292,7 @@ export default function (pi: ExtensionAPI) {
 
     // Fallback: two-step confirm dialog
     if (typeof ctx.ui?.confirm === "function") {
-      const cmdPreview = cmdLines.join("\n");
+      const cmdPreview = formatCommandForDisplay(command).join("\n");
       const title = stepInfo ? `🛡️🔒 Strict Mode — Bash Command ${stepInfo}` : "🛡️🔒 Strict Mode — Bash Command";
       const choice = await ctx.ui.confirm(
         title,

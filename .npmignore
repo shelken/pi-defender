@@ -1,5 +1,7 @@
 # Pi internal files
 .pi/
+.claude/
+.vscode/
 
 # Pi session artifacts
 pi-session-*.html

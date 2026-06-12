@@ -648,6 +648,24 @@ const COL_ND = 5;
 const COL_WL = 5;
 
 /**
+ * Color a padded number column with accent if non-zero.
+ * After the accent text (which ends in `\x1b[0m` reset), appends `dimAnsi`
+ * to restore the ambient dim styling so remaining table text stays dim.
+ */
+function accentCol(
+  n: number,
+  colWidth: number,
+  fg?: (color: string, text: string) => string,
+  dimAnsi?: string,
+): string {
+  const padded = padL(String(n), colWidth);
+  if (n !== 0 && fg) {
+    return fg("accent", padded) + (dimAnsi ?? "");
+  }
+  return padded;
+}
+
+/**
  * Build a human-readable table showing which rules were loaded from which sources.
  * Uses Unicode box-drawing characters for a clean table look.
  *
@@ -656,12 +674,18 @@ const COL_WL = 5;
  *   ~/.pi/patterns.yaml   — essential rules (shipped, overwritten on install)
  *   .pi/defender.yaml     — user rules (never overwritten)
  *   ~/.pi/defender.yaml   — user rules (never overwritten)
+ *
+ * @param fg      Optional theme color function — non-zero numbers are highlighted in accent.
+ * @param dimAnsi Optional raw dim ANSI escape code — restored after each accent-colored cell
+ *                to keep surrounding text dim instead of defaulting to bright white.
  */
 export function formatConfigTable(
   loaded: LoadedConfig,
   version: string,
   strictMode: boolean,
   disabled: boolean,
+  fg?: (color: string, text: string) => string,
+  dimAnsi?: string,
 ): string {
   const lines: string[] = [];
 
@@ -696,11 +720,11 @@ export function formatConfigTable(
     if (src.found) {
       const row = [
         padR(src.displayPath, COL_SRC),
-        padL(String(src.patternCount), COL_PAT),
-        padL(String(src.zeroAccessCount), COL_ZERO),
-        padL(String(src.readOnlyCount), COL_RO),
-        padL(String(src.noDeleteCount), COL_ND),
-        padL(String(src.whitelistCount), COL_WL),
+        accentCol(src.patternCount, COL_PAT, fg, dimAnsi),
+        accentCol(src.zeroAccessCount, COL_ZERO, fg, dimAnsi),
+        accentCol(src.readOnlyCount, COL_RO, fg, dimAnsi),
+        accentCol(src.noDeleteCount, COL_ND, fg, dimAnsi),
+        accentCol(src.whitelistCount, COL_WL, fg, dimAnsi),
       ].join(" ");
       lines.push(`  │ ${row} │`);
     } else {
@@ -715,11 +739,11 @@ export function formatConfigTable(
   const cfg = loaded.config;
   const totalRow = [
     padR("TOTAL (merged)", COL_SRC),
-    padL(String(cfg.bashToolPatterns.length), COL_PAT),
-    padL(String(cfg.zeroAccessPaths.length), COL_ZERO),
-    padL(String(cfg.readOnlyPaths.length), COL_RO),
-    padL(String(cfg.noDeletePaths.length), COL_ND),
-    padL(String(cfg.strictModeWhiteList.length), COL_WL),
+    accentCol(cfg.bashToolPatterns.length, COL_PAT, fg, dimAnsi),
+    accentCol(cfg.zeroAccessPaths.length, COL_ZERO, fg, dimAnsi),
+    accentCol(cfg.readOnlyPaths.length, COL_RO, fg, dimAnsi),
+    accentCol(cfg.noDeletePaths.length, COL_ND, fg, dimAnsi),
+    accentCol(cfg.strictModeWhiteList.length, COL_WL, fg, dimAnsi),
   ].join(" ");
   lines.push(`  │ ${totalRow} │`);
 
@@ -742,28 +766,36 @@ export interface StatsSnapshot {
 /**
  * Build a stats table matching the style of formatConfigTable.
  * Simpler 2-column layout: Stat label + count.
+ *
+ * @param fg      Optional theme color function — non-zero counts are highlighted in accent.
+ * @param dimAnsi Optional raw dim ANSI escape code — restored after each accent-colored cell.
  */
-export function formatStatsTable(st: StatsSnapshot, sessionApprovedCount: number): string {
+export function formatStatsTable(
+  st: StatsSnapshot,
+  sessionApprovedCount: number,
+  fg?: (color: string, text: string) => string,
+  dimAnsi?: string,
+): string {
   const COL_LABEL = 24;
   const COL_VAL = 6;
   const BORDER = "─".repeat(33);
 
-  const rows: [string, string][] = [
-    ["Allowed", String(st.allowed)],
-    ["Blocked", String(st.blocked)],
-    ["Asked", String(st.asked)],
-    ["Strict approved", String(st.strictApproved)],
-    ["Strict denied", String(st.strictBlocked)],
-    ["Approve-all", String(st.strictApprovedAll)],
-    ["Session-approved", String(sessionApprovedCount)],
+  const rows: [string, number][] = [
+    ["Allowed", st.allowed],
+    ["Blocked", st.blocked],
+    ["Asked", st.asked],
+    ["Strict approved", st.strictApproved],
+    ["Strict denied", st.strictBlocked],
+    ["Approve-all", st.strictApprovedAll],
+    ["Session-approved", sessionApprovedCount],
   ];
 
   const lines: string[] = [];
   lines.push(`  ┌${BORDER}┐`);
   lines.push(`  │ ${padR("Stat", COL_LABEL)} ${padL("Cnt", COL_VAL)} │`);
   lines.push(`  ├${BORDER}┤`);
-  for (const [label, val] of rows) {
-    lines.push(`  │ ${padR(label, COL_LABEL)} ${padL(val, COL_VAL)} │`);
+  for (const [label, n] of rows) {
+    lines.push(`  │ ${padR(label, COL_LABEL)} ${accentCol(n, COL_VAL, fg, dimAnsi)} │`);
   }
   lines.push(`  └${BORDER}┘`);
   return lines.join("\n");

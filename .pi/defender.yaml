@@ -1,0 +1,2 @@
+strictModeWhiteList:
+  - ^npm test\b

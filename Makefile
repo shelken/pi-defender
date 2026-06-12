@@ -1,13 +1,15 @@
 .PHONY: publish test
 
 # Publish a new version to npm + create a GitHub release.
-#   1. Checks gh CLI is installed and authenticated, npm login if needed.
-#   2. Commits any uncommitted changes (if any).
-#   3. Pushes local commits to GitHub (if behind/ahead).
-#   4. Bumps version in package.json and creates a git commit + tag (npm version).
-#   5. Pushes the commit and tag to GitHub.
-#   6. Publishes the package to npm registry (npm publish).
-#   7. Extracts release notes from CHANGELOG.md and creates a GitHub release via gh.
+#   1. Checks prerequisites (gh, npm login).
+#   2. Computes the next version number from package.json + $(v).
+#   3. Replaces ## [Unreleased] with ## [v$NEWVER] in CHANGELOG.md (idempotent).
+#   4. Commits any uncommitted changes (including the CHANGELOG update).
+#   5. Pushes local commits to GitHub.
+#   6. Bumps version in package.json and creates a git commit + tag (npm version).
+#   7. Pushes the commit and tag to GitHub.
+#   8. Publishes the package to npm registry (npm publish).
+#   9. Extracts release notes from CHANGELOG.md and creates a GitHub release via gh.
 #
 # Usage: make publish v=<version>
 #   make publish v=patch   — 1.0.1 → 1.0.2
@@ -31,6 +33,11 @@ publish:
 		echo "🔑 Not logged in to npm. Running npm login..."; \
 		npm login; \
 	}
+	@NEWVER=$$(node -e "var p=require('./package.json').version.split('.').map(Number);console.log('$(v)'==='major'?p[0]+1+'.0.0':'$(v)'==='minor'?p[0]+'.'+(p[1]+1)+'.0':'$(v)'==='patch'?p[0]+'.'+p[1]+'.'+(p[2]+1):'$(v)')"); \
+	if grep -q '^## \[Unreleased\]' CHANGELOG.md; then \
+		echo "📝 CHANGELOG: [Unreleased] → [v$$NEWVER]"; \
+		perl -pi -e "s/^## \[Unreleased\]/## [v$$NEWVER]/" CHANGELOG.md; \
+	fi
 	@if ! git diff --quiet --exit-code || ! git diff --cached --quiet --exit-code; then \
 		echo "📦 Uncommitted changes found. Committing..."; \
 		git add -A; \

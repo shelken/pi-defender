@@ -98,12 +98,16 @@ Returns `LoadedConfig`:
 `patterns.yaml` if missing (idempotent). Called on session_start and by
 `/defender:patterns` command.
 
-### Table formatting (config.ts:formatConfigTable)
+### Table formatting (config.ts:formatConfigTable / formatStatsTable)
 
-`formatConfigTable(loaded, version, strictMode, disabled)` builds a Unicode
+`formatConfigTable(loaded, version, strictMode, disabled, fg?)` builds a Unicode
 box-drawing table with columns: Source, Pat, Zero, ROnly, NDel, Wlst.
 Shows all 4 sources — found files show per-category counts, unfound files
 show "— not found —". Used by session_start, /defender:reload, and /defender:status.
+
+`formatStatsTable(st, sessionApprovedCount, fg?)` builds a 2-column table
+(Stat + Cnt). Both functions accept an optional `fg` color function — non-zero
+counts are highlighted in accent color. `index.ts` passes `savedTheme.fg.bind(savedTheme)`.
 
 ### Whitelist (config.ts)
 

@@ -1,2 +1,3 @@
 - after apdate to any `*.ts` file, update `README.md` and `CHANGELOG.md` and `AGENTS.md`
+- In `CHANGELOG.md` save under (## [Unreleased]) title. If it is not there create it.
 - Look pi documentaion for best practice

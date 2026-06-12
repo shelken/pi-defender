@@ -49,6 +49,12 @@ export default function (pi: ExtensionAPI) {
   let aborted = false;
   let defenderDisabled = false; // set by session-start "Disable Defender" — skips ALL tool_call analysis
   let savedTheme: any = null;
+  /** Safe accessor for savedTheme.fg — returns undefined if no theme captured yet. */
+  const getFg = (): ((color: string, text: string) => string) | undefined =>
+    savedTheme ? savedTheme.fg.bind(savedTheme) : undefined;
+  /** Raw dim ANSI escape code — restored after accent-colored cells so text stays dim. */
+  const getDimAnsi = (): string | undefined =>
+    savedTheme ? (savedTheme as any).getFgAnsi?.("dim") : undefined;
 
   function getConfig(cwd: string): Config {
     return getLoadedConfig(cwd).config;
@@ -71,7 +77,7 @@ export default function (pi: ExtensionAPI) {
       // No UI — default to strict mode ON with table notification
       strictMode = true;
       ctx.ui.notify(
-        formatConfigTable(loaded, DEFENDER_VERSION, true, false),
+        formatConfigTable(loaded, DEFENDER_VERSION, true, false, getFg(), getDimAnsi()),
         "info",
       );
       return;
@@ -148,21 +154,21 @@ export default function (pi: ExtensionAPI) {
         strictMode = false;
         defenderDisabled = true;
         ctx.ui.notify(
-          formatConfigTable(loaded, DEFENDER_VERSION, false, true),
+          formatConfigTable(loaded, DEFENDER_VERSION, false, true, getFg(), getDimAnsi()),
           "warning",
         );
       } else if (choice === "patterns") {
         strictMode = false;
         defenderDisabled = false;
         ctx.ui.notify(
-          formatConfigTable(loaded, DEFENDER_VERSION, false, false),
+          formatConfigTable(loaded, DEFENDER_VERSION, false, false, getFg(), getDimAnsi()),
           "info",
         );
       } else {
         strictMode = true;
         defenderDisabled = false;
         ctx.ui.notify(
-          formatConfigTable(loaded, DEFENDER_VERSION, true, false),
+          formatConfigTable(loaded, DEFENDER_VERSION, true, false, getFg(), getDimAnsi()),
           "info",
         );
       }
@@ -170,7 +176,7 @@ export default function (pi: ExtensionAPI) {
       // Fallback if custom UI fails
       strictMode = true;
       ctx.ui.notify(
-        formatConfigTable(loaded, DEFENDER_VERSION, true, false),
+        formatConfigTable(loaded, DEFENDER_VERSION, true, false, getFg(), getDimAnsi()),
         "info",
       );
     }
@@ -692,8 +698,8 @@ export default function (pi: ExtensionAPI) {
         strictBlocked: stats.strictBlocked,
         strictApprovedAll: stats.strictApprovedAll,
       };
-      const statsTable = formatStatsTable(st, sessionApprovedPatterns.length);
-      const configTable = formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled);
+      const statsTable = formatStatsTable(st, sessionApprovedPatterns.length, getFg(), getDimAnsi());
+      const configTable = formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled, getFg(), getDimAnsi());
 
       ctx.ui.notify(
         configTable + "\n\n" + statsTable,
@@ -708,7 +714,7 @@ export default function (pi: ExtensionAPI) {
       currentLoadedConfig = null;
       const loaded = getLoadedConfig(ctx.cwd);
       ctx.ui.notify(
-        formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled),
+        formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled, getFg(), getDimAnsi()),
         "info",
       );
     },

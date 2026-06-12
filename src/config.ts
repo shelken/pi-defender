@@ -506,16 +506,31 @@ const META_COMMANDS = new Set([
   "systemctl", "journalctl", "pm2", "make",
 ]);
 
+// Commands with a `run` sub-command whose script name should be captured too.
+// npm run build  →  ^npm run build\b  (not just ^npm run\b)
+// bun run dev    →  ^bun run dev\b
+const RUN_COMMANDS = new Set(["npm", "yarn", "pnpm", "bun"]);
+
 /**
  * Generate a whitelist regex pattern from a single bash command.
  * Extracts only the tool identity — base command plus subcommand (for meta-tools)
  * — and wraps in ^...\b. Strips all flags, parameters, paths, and directories.
  *
+ * For run-commands (npm, yarn, pnpm, bun) the script name is also captured,
+ * with a flag-tolerant gap to allow flags like --if-present, -s, --watch:
+ *   "npm run build"         →  "^npm run(\\s+--?[a-zA-Z][\\w-]*)*\\s+build\\b"
+ *   "npm run --if-present build" → "^npm run(\\s+--?[a-zA-Z][\\w-]*)*\\s+build\\b"
+ *   "npm run -s build"      →  "^npm run(\\s+--?[a-zA-Z][\\w-]*)*\\s+build\\b"
+ *
  * Examples:
  *   "find . -name '*.ts'"   → "^find\\b"
  *   "git diff HEAD~1"       → "^git diff\\b"
  *   "npx tsc --noEmit"      → "^npx tsc\\b"
- *   "npm run build"         → "^npm run\\b"
+ *   "npm run build"         → "^npm run(\\s+--?[a-zA-Z][\\w-]*)*\\s+build\\b"
+ *   "npm run --if-present build" → "^npm run(\\s+--?[a-zA-Z][\\w-]*)*\\s+build\\b"
+ *   "npm run"               → "^npm run\\b"
+ *   "bun run dev"           → "^bun run(\\s+--?[a-zA-Z][\\w-]*)*\\s+dev\\b"
+ *   "npm install"           → "^npm install\\b"
  *   "grep -n 'pat' file"    → "^grep\\b"
  *   "ls -la /tmp"           → "^ls\\b"
  *   "/usr/bin/curl url"     → "^curl\\b"
@@ -527,13 +542,34 @@ export function generateWhitelistPattern(command: string): string {
   const identity: string[] = [];
 
   // First token is always the base command (strip path prefix if present)
-  identity.push(getCommandName(tokens[0]));
+  const baseCmd = getCommandName(tokens[0]);
+  identity.push(baseCmd);
 
   // For meta-commands, include the subcommand if it's not a flag
-  if (META_COMMANDS.has(getCommandName(tokens[0])) && tokens.length > 1) {
+  if (META_COMMANDS.has(baseCmd) && tokens.length > 1) {
     const sub = tokens[1];
     if (!sub.startsWith("-")) {
       identity.push(sub);
+
+      // For run-commands (npm, yarn, pnpm, bun), capture the script name too.
+      // Scan past flags (--if-present, -s, --watch, etc.) to find the script.
+      // npm run --if-present build → ^npm run(\s+--?[a-zA-Z][\w-]*)*\s+build\b
+      if (RUN_COMMANDS.has(baseCmd) && sub === "run" && tokens.length > 2) {
+        // Find the first non-flag token after "run" — that's the script name
+        let scriptIdx = -1;
+        for (let i = 2; i < tokens.length; i++) {
+          if (!tokens[i].startsWith("-")) {
+            scriptIdx = i;
+            break;
+          }
+        }
+        if (scriptIdx !== -1) {
+          const script = tokens[scriptIdx];
+          const escapedBase = baseCmd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const escapedScript = script.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          return `^${escapedBase} run(\\s+--?[a-zA-Z][\\w-]*)*\\s+${escapedScript}\\b`;
+        }
+      }
     }
   }
 
@@ -549,7 +585,7 @@ export function generateWhitelistPattern(command: string): string {
  *
  * Example:
  *   "git diff HEAD~1 && npm run build"
- *   → ["^git diff\\b", "^npm run\\b"]
+ *   → ["^git diff\\b", "^npm run(\\s+--?[a-zA-Z][\\w-]*)*\\s+build\\b"]
  */
 export function generateWhitelistPatterns(command: string): string[] {
   return splitChainCommands(command).map(cmd => generateWhitelistPattern(cmd));

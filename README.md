@@ -55,7 +55,7 @@ Block ALL bash tool execution and require explicit user approval for every comma
   - ❌ **Abort (stop all execution)** — block this command AND lock all future bash commands until reset
 - **patterns.yaml always enforced**: Commands matching blocked patterns are never allowed, even with approve-all or whitelist
 - **Number key shortcuts**: Press `1`-`N` to instantly select any option — faster than arrow keys
-- **Whitelist**: Save trusted commands to `.pi/patterns.yaml` for persistent auto-approval across sessions
+- **Whitelist**: Save trusted commands to `.pi/defender.yaml` for persistent auto-approval across sessions
 - Toggle with `/defender:strict` (on|off, or no parameter to toggle)
 - Shows 🛡️🔒 badge when active
 - **Config table on session start**: Instead of a one-line summary, Pi Defender now displays a table breaking down which rules come from which file:
@@ -186,6 +186,7 @@ noDeletePaths:
 
 strictModeWhiteList:
   - npm\\ test
+  - npm\\ run\\ build
   - git\\ status
   - ls\\ -la
 ```
@@ -305,7 +306,7 @@ This is useful when the agent is going in a wrong direction and you want to stop
 
 When strict mode prompts you for a command you trust (like `npm test` or `git status`), select 📋 **Allow & Whitelist** to save a regex pattern for it. Future runs of the same command are auto-approved — no prompt needed.
 
-- Pattern is saved to `.pi/patterns.yaml` under `strictModeWhiteList`
+- Pattern is saved to `.pi/defender.yaml` under `strictModeWhiteList`
 - The file is created automatically if it doesn't exist
 - Duplicate patterns are detected and not re-added
 - When a whitelisted command runs, a notification shows which pattern matched
@@ -313,10 +314,11 @@ When strict mode prompts you for a command you trust (like `npm test` or `git st
   - `find . -name "*.ts"` → `^find\b`
   - `git diff HEAD~1` → `^git diff\b`
   - `npx tsc --noEmit` → `^npx tsc\b`
+  - `npm run build` → `^npm run(\s+--?[a-zA-Z][\w-]*)*\s+build\b` (3-level with flag-tolerant gap)
   - `grep -n "pat" file` → `^grep\b`
   - `ls -la /tmp` → `^ls\b`
 - The `^...\b` anchors ensure precise matching: `^find\b` matches `find` but not `findmnt` or `find . -name`
-- Patterns are JS regex — you can manually edit `.pi/patterns.yaml` to refine them (e.g. add flags: `^grep -n\b`)
+- Patterns are JS regex — you can manually edit `.pi/defender.yaml` to refine them (e.g. add flags: `^grep -n\b`)
 
 ### Deactivate
 
@@ -386,8 +388,8 @@ pi-defender/
 
 **Installed locations:**
 ```
-~/.pi/defender/patterns.yaml     # Global config
-.pi/defender/patterns.yaml       # Project config
+~/.pi/patterns.yaml     # Global config
+.pi/patterns.yaml       # Project config
 ```
 
 ## How It Works

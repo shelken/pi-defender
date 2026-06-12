@@ -2,6 +2,15 @@
 
 All notable changes to Pi Defender will be documented in this file.
 
+## [v1.6.2]
+
+- `add` - **3-level whitelist patterns for `npm run` / `bun run`**: `generateWhitelistPattern` now captures the script name when the sub-command is `run`, with a flag-tolerant gap. Previously `npm run build` generated `^npm run\b` (2-level), now it generates `^npm run(\s+--?[a-zA-Z][\w-]*)*\s+build\b` — because not all `run` commands are equally safe. Flags between `run` and the script (like `--if-present`, `-s`, `--silent`) are handled gracefully. Applies to `npm`, `yarn`, `pnpm`, and `bun`.
+  - `npm run build` → `^npm run(\s+--?[a-zA-Z][\w-]*)*\s+build\b`
+  - `npm run --if-present build` → same pattern (flags tolerated)
+  - `npm run -s build` → same pattern
+  - `npm run` → `^npm run\b` (fallback when no script name)
+  - `npm install` → `^npm install\b` (unchanged — not a `run` sub-command)
+
 ## [v1.6.1]
 
 - `add` - **Accent-colored numbers in tables**: `formatConfigTable` and `formatStatsTable` now highlight non-zero counts with accent color. Both functions accept an optional `fg` color function parameter; `index.ts` passes `savedTheme.fg`. Zero values remain plain.

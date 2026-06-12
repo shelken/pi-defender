@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { homedir } from "node:os";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
@@ -627,67 +627,6 @@ export function addPatternsToWhitelist(cwd: string, patterns: string[]): { added
 }
 
 // =============================================================================
-// CONFIG DEPLOYMENT — copy bundled defaults to .pi on first use
-// =============================================================================
-
-/**
- * Ensure the global patterns.yaml exists. If not, copy the bundled defaults
- * from the package installation. Idempotent — never overwrites an existing file.
- *
- * This handles the case where pi-defender is installed manually (not via npm)
- * and the postinstall script didn't run.
- */
-export function ensurePatternsConfig(cwd: string): { deployed: boolean; path: string } {
-  const globalPath = join(homedir(), ".pi", "patterns.yaml");
-  const localPath = join(cwd, ".pi", "patterns.yaml");
-
-  // Find the bundled patterns.yaml source
-  const sourceCandidates: string[] = [];
-  // @ts-ignore — __dirname is CJS global
-  if (typeof __dirname !== "undefined") {
-    sourceCandidates.push(join(__dirname, "patterns.yaml"));           // dist/
-  }
-  sourceCandidates.push(join(cwd, "src", "patterns.yaml"));            // dev
-  // Try node_modules resolution
-  sourceCandidates.push(
-    join(cwd, "node_modules", "pi-defender", "src", "patterns.yaml"),
-  );
-
-  let sourcePath: string | null = null;
-  for (const candidate of sourceCandidates) {
-    if (existsSync(candidate)) {
-      sourcePath = candidate;
-      break;
-    }
-  }
-
-  if (!sourcePath) return { deployed: false, path: "" };
-
-  const deployed: string[] = [];
-
-  // Deploy global if missing
-  if (!existsSync(globalPath)) {
-    const globalDir = dirname(globalPath);
-    if (!existsSync(globalDir)) mkdirSync(globalDir, { recursive: true });
-    writeFileSync(globalPath, readFileSync(sourcePath, "utf-8"), "utf-8");
-    deployed.push(globalPath);
-  }
-
-  // Deploy local if missing
-  if (!existsSync(localPath)) {
-    const localDir = dirname(localPath);
-    if (!existsSync(localDir)) mkdirSync(localDir, { recursive: true });
-    writeFileSync(localPath, readFileSync(sourcePath, "utf-8"), "utf-8");
-    deployed.push(localPath);
-  }
-
-  return {
-    deployed: deployed.length > 0,
-    path: deployed.length === 1 ? deployed[0] : deployed.join(", "),
-  };
-}
-
-// =============================================================================
 // TABLE FORMATTING — session-start notification
 // =============================================================================
 
@@ -787,6 +726,46 @@ export function formatConfigTable(
   // Table bottom
   lines.push(`  └${BORDER}┘`);
 
+  return lines.join("\n");
+}
+
+/** Snapshot of runtime counters for the stats table. */
+export interface StatsSnapshot {
+  allowed: number;
+  blocked: number;
+  asked: number;
+  strictApproved: number;
+  strictBlocked: number;
+  strictApprovedAll: number;
+}
+
+/**
+ * Build a stats table matching the style of formatConfigTable.
+ * Simpler 2-column layout: Stat label + count.
+ */
+export function formatStatsTable(st: StatsSnapshot, sessionApprovedCount: number): string {
+  const COL_LABEL = 24;
+  const COL_VAL = 6;
+  const BORDER = "─".repeat(33);
+
+  const rows: [string, string][] = [
+    ["Allowed", String(st.allowed)],
+    ["Blocked", String(st.blocked)],
+    ["Asked", String(st.asked)],
+    ["Strict approved", String(st.strictApproved)],
+    ["Strict denied", String(st.strictBlocked)],
+    ["Approve-all", String(st.strictApprovedAll)],
+    ["Session-approved", String(sessionApprovedCount)],
+  ];
+
+  const lines: string[] = [];
+  lines.push(`  ┌${BORDER}┐`);
+  lines.push(`  │ ${padR("Stat", COL_LABEL)} ${padL("Cnt", COL_VAL)} │`);
+  lines.push(`  ├${BORDER}┤`);
+  for (const [label, val] of rows) {
+    lines.push(`  │ ${padR(label, COL_LABEL)} ${padL(val, COL_VAL)} │`);
+  }
+  lines.push(`  └${BORDER}┘`);
   return lines.join("\n");
 }
 

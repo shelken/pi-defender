@@ -24,7 +24,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType, Theme } from "@earendil-works/pi-coding-agent";
 import { matchesKey, Key, decodeKittyPrintable, truncateToWidth } from "@earendil-works/pi-tui";
-import { loadConfig, checkCommand, checkFileAccess, checkWhitelist, generateWhitelistPatterns, addPatternsToWhitelist, splitChainCommands, formatConfigTable, ensurePatternsConfig, type Config, type LoadedConfig } from "./config";
+import { loadConfig, checkCommand, checkFileAccess, checkWhitelist, generateWhitelistPatterns, addPatternsToWhitelist, splitChainCommands, formatConfigTable, formatStatsTable, type Config, type LoadedConfig, type StatsSnapshot } from "./config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -65,9 +65,6 @@ export default function (pi: ExtensionAPI) {
   // ===========================================================================
 
   pi.on("session_start", async (_event, ctx) => {
-    // Deploy bundled defaults to .pi if missing (idempotent)
-    ensurePatternsConfig(ctx.cwd);
-
     const loaded = getLoadedConfig(ctx.cwd);
 
     if (!ctx.hasUI || typeof ctx.ui?.custom !== "function") {
@@ -686,23 +683,20 @@ export default function (pi: ExtensionAPI) {
     description: "Show defender statistics and active configuration",
     handler: async (_args, ctx) => {
       const loaded = getLoadedConfig(ctx.cwd);
-      const config = loaded.config;
-      const abortStatus = aborted ? " ❌ ABORTED" : "";
-      const approveCount = sessionApprovedPatterns.length;
-      const strictStatus = defenderDisabled
-        ? `⚪ DISABLED (use /defender:strict on to re-enable)`
-        : strictMode
-          ? `🔒 ACTIVE (default)${approveCount > 0 ? ` (${approveCount} session-approved)` : ""}${abortStatus}`
-          : aborted
-            ? `❌ ABORTED (use /defender:strict off to reset)`
-            : "⚪ OFF (non-default)";
+
+      const st: StatsSnapshot = {
+        allowed: stats.allowed,
+        blocked: stats.blocked,
+        asked: stats.asked,
+        strictApproved: stats.strictApproved,
+        strictBlocked: stats.strictBlocked,
+        strictApprovedAll: stats.strictApprovedAll,
+      };
+      const statsTable = formatStatsTable(st, sessionApprovedPatterns.length);
+      const configTable = formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled);
+
       ctx.ui.notify(
-        `🛡️  Defender Stats\n` +
-        `  Allowed: ${stats.allowed} · Blocked: ${stats.blocked} · Asked: ${stats.asked}\n` +
-        `  Strict: ${stats.strictApproved} approved · ${stats.strictBlocked} blocked · ${stats.strictApprovedAll} approve-all · ${sessionApprovedPatterns.length} session-approved\n` +
-        `  Mode: ${strictStatus}\n` +
-        `\n` +
-        formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled),
+        configTable + "\n\n" + statsTable,
         "info",
       );
     },
@@ -721,31 +715,20 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand("defender:patterns", {
-    description: "Copy bundled essential patterns to project's .pi/patterns.yaml (idempotent)",
+    description: "Show where patterns are loaded from (patterns.yaml + defender.yaml)",
     handler: async (_args, ctx) => {
-      const result = ensurePatternsConfig(ctx.cwd);
-      if (result.deployed) {
-        ctx.ui.notify(
-          `🛡️ Deployed essential patterns to: ${result.path}. Reloading config...`,
-          "info",
-        );
-        currentLoadedConfig = null;
-        const loaded = getLoadedConfig(ctx.cwd);
-        ctx.ui.notify(
-          formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled),
-          "info",
-        );
-      } else if (result.path) {
-        ctx.ui.notify(
-          `🛡️ Patterns already deployed to: ${result.path}`,
-          "info",
-        );
-      } else {
-        ctx.ui.notify(
-          "🛡️ Could not find bundled patterns.yaml source file.",
-          "error",
-        );
-      }
+      const loaded = getLoadedConfig(ctx.cwd);
+      const sourceInfo = loaded.sources
+        .filter(s => s.displayPath.includes("patterns.yaml"))
+        .map(s => `  ${s.found ? "✅" : "❌"} ${s.displayPath}`)
+        .join("\n");
+
+      ctx.ui.notify(
+        `Patterns are loaded from .pi directories (never src/ or dist/):\n` +
+        sourceInfo +
+        `\n\nRun /defender:reload to refresh after editing.`,
+        "info",
+      );
     },
   });
 

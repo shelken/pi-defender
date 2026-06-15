@@ -118,7 +118,7 @@ export default function (pi: ExtensionAPI) {
             lines.push("");
             lines.push(theme.fg("dim", " ↑↓ navigate · 1-N select · enter confirm"));
             lines.push(theme.fg("accent", sep));
-            return lines;
+            return lines.map(l => truncateToWidth(l, width));
           }
 
           return {
@@ -253,7 +253,7 @@ export default function (pi: ExtensionAPI) {
                 lines.push(theme.fg("accent", `  ${cmdLine}`));
               }
               lines.push("");
-              lines.push(theme.fg("warning", `  Reason: ${displayReason}`));
+              lines.push(truncateToWidth(theme.fg("warning", `  Reason: ${displayReason}`), width));
               lines.push("");
               for (let i = 0; i < options.length; i++) {
                 const isSelected = i === selectedIndex;
@@ -269,7 +269,7 @@ export default function (pi: ExtensionAPI) {
               lines.push("");
               lines.push(theme.fg("dim", " ↑↓ navigate · 1-N select · enter confirm · esc deny"));
               lines.push(theme.fg("warning", sep));
-              return lines;
+              return lines.map(l => truncateToWidth(l, width));
             }
 
             return {
@@ -347,7 +347,8 @@ export default function (pi: ExtensionAPI) {
               const cmdMaxWidth = Math.max(1, width - 2); // "  " indent
               lines.push(theme.fg("warning", sep));
               lines.push(theme.fg("warning", theme.bold(` 🛡️🔒 Strict Mode — Bash Command${stepTag}`)));
-              lines.push(`  ${theme.fg("muted","Run")}  ${theme.fg("mdLink", "/defender:strict off")} ${theme.fg("muted", "to turn Strict Mode off and stop these prompts to popup.")}`);
+              const hintLine = `  ${theme.fg("muted","Run")}  ${theme.fg("mdLink", "/defender:strict off")} ${theme.fg("muted", "to turn Strict Mode off and stop these prompts.")}`;
+              lines.push(truncateToWidth(hintLine, width));
               lines.push("");
               lines.push(theme.fg("warning", theme.bold(" Command:")));
               for (const cmdLine of formatCommandForDisplay(command, cmdMaxWidth)) {
@@ -368,7 +369,7 @@ export default function (pi: ExtensionAPI) {
               lines.push("");
               lines.push(theme.fg("dim", " ↑↓ navigate · 1-N select · enter confirm · esc deny"));
               lines.push(theme.fg("accent", sep));
-              return lines;
+              return lines.map(l => truncateToWidth(l, width));
             }
 
             return {

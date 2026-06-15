@@ -2,6 +2,10 @@
 
 All notable changes to Pi Defender will be documented in this file.
 
+## [v1.6.3]
+
+- `fix` - **Truncate all rendered lines to terminal width**: All three TUI render functions (session-start selector, `patternBlockedPrompt`, `strictModePrompt`) now apply `truncateToWidth(l, width)` to every rendered line via `.map()`. The specific trigger was the hint line in `strictModePrompt` ("Run  /defender:strict off to turn Strict Mode off and stop these prompts to popup.") which was 84 visible chars on an 82-char terminal. The hint text was also shortened ("to popup" → ""). Additionally, the reason line in `patternBlockedPrompt` is explicitly truncated to prevent overflows from long pattern reasons.
+
 ## [v1.6.2]
 
 - `add` - **3-level whitelist patterns for `npm run` / `bun run` with flag-tolerant gap**: `generateWhitelistPattern` now captures the script name when the sub-command is `run`, with a flag-tolerant gap between `run` and the script name. Previously `npm run build` generated `^npm run\b` (2-level), now it generates `^npm run(\s+--?[a-zA-Z][\w-]*)*\s+build\b`. **No fallback** — `npm run` (without a script name) returns empty string, because `^npm run\b` would auto-approve ALL run commands. Flags like `--if-present`, `-s`, `--silent` between `run` and the script are tolerated. Applies to `npm`, `yarn`, `pnpm`, and `bun`.

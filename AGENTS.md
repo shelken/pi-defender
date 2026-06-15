@@ -170,6 +170,20 @@ Both prompts use `formatCommandForDisplay(command, maxWidth?)` (`src/index.ts`) 
 - A clear **`Command:`** label (also in accent/bold) is shown above the command text
 - When approving a sub-command from a chain, a **step indicator** like `(2/3)` appears in the title bar
 
+### Render safety — line truncation
+
+ALL three custom TUI render functions (session-start selector, `patternBlockedPrompt`,
+`strictModePrompt`) apply `truncateToWidth(l, width)` to every line via
+`return lines.map(l => truncateToWidth(l, width))`. This is a defense-in-depth
+measure — every rendered line is truncated to the terminal width before being
+returned to the TUI framework. Without it, any line (hint text, reason text,
+description text) that accidentally exceeds the terminal width crashes Pi
+with `"Rendered line N exceeds terminal width (X > Y)"`.
+
+Additionally, the hint line in `strictModePrompt` and the reason line in
+`patternBlockedPrompt` are explicitly truncated before being added to the lines
+array — both can exceed typical terminal widths with long text.
+
 ### Selector UI
 
 Two custom UI prompts using `ctx.ui.custom()`:

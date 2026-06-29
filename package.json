@@ -1,10 +1,13 @@
 {
-  "name": "pi-defender",
+  "name": "@shelken/pi-defender",
   "version": "1.6.4",
-  "description": "Defense-in-depth protection for Pi coding agent. Blocks dangerous commands and protects sensitive files — rename of pi-damage-control.",
+  "description": "Defense-in-depth protection for Pi coding agent. Blocks dangerous commands and protects sensitive files — fork of Serhioromano/pi-defender with defaultMode support.",
   "license": "MIT",
-  "author": "Serhioromano",
-  "repository": "github:Serhioromano/pi-defender",
+  "author": "shelken",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shelken/pi-defender.git"
+  },
   "scripts": {
     "postinstall": "mkdir -p ~/.pi && cp src/patterns.yaml ~/.pi/"
   },

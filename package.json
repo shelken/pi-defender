@@ -1,6 +1,6 @@
 {
   "name": "@shelken/pi-defender",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Defense-in-depth protection for Pi coding agent. Blocks dangerous commands and protects sensitive files — fork of Serhioromano/pi-defender with defaultMode support.",
   "license": "MIT",
   "author": "shelken",

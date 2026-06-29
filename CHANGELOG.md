@@ -2,6 +2,10 @@
 
 All notable changes to Pi Defender will be documented in this file.
 
+## [Unreleased]
+
+- `fix` - **Skip selector when defaultMode is configured**: When `defaultMode` is set in `defender.yaml`, the session-start selector is now skipped entirely and the configured mode applied directly. Previously the selector still appeared (with the configured default highlighted), defeating the purpose of setting a default.
+
 ## [v1.7.0]
 
 - `add` - **Configurable default mode**: New `defaultMode` field in `defender.yaml` controls the session-start protection level. Supported values: `"strict"` (default, same as before), `"patterns"` (Patterns only), `"off"` (Disable Defender). When set, the session-start selector highlights the configured default and the fallback (no-UI / catch) path uses it. Without this field, behavior is unchanged — strict mode ON.

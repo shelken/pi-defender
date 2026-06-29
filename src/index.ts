@@ -86,16 +86,24 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    try {
-      const initialIndex = defaultMode === "patterns" ? 1 : defaultMode === "off" ? 2 : 0;
-      const defaultChoice = defaultMode ?? "strict";
+    // If defaultMode is configured, skip the selector — apply directly
+    if (defaultMode) {
+      strictMode = defaultMode !== "patterns" && defaultMode !== "off";
+      defenderDisabled = defaultMode === "off";
+      ctx.ui.notify(
+        formatConfigTable(loaded, DEFENDER_VERSION, strictMode, defenderDisabled, getFg(), getDimAnsi()),
+        "info",
+      );
+      return;
+    }
 
+    try {
       const result = await ctx.ui.custom(
         (_tui: any, theme: any, _kb: any, done: (value: string) => void) => {
           savedTheme = theme;
-          let selectedIndex = initialIndex;
+          let selectedIndex = 0;
           const options = [
-            { value: "strict", label: defaultMode === "strict" ? "🔒 Strict Mode ON (configured default)" : "🔒 Strict Mode ON (recommended)", desc: "Every bash command goes through filtering or approval" },
+            { value: "strict", label: "🔒 Strict Mode ON (recommended)", desc: "Every bash command goes through filtering or approval" },
             { value: "patterns", label: "🛡️ Patterns only", desc: "Only patterns.yaml blocked rules are enforced for confirmation" },
             { value: "off", label: "⚪ Disable Defender", desc: "No protection — use `/defender:strict on` to re-enable" },
           ];
@@ -155,7 +163,7 @@ export default function (pi: ExtensionAPI) {
         },
       );
 
-      const choice = (result ?? defaultChoice) as string;
+      const choice = (result ?? "strict") as string;
       if (choice === "off") {
         strictMode = false;
         defenderDisabled = true;

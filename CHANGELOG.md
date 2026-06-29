@@ -2,7 +2,7 @@
 
 All notable changes to Pi Defender will be documented in this file.
 
-## [Unreleased]
+## [v1.7.0]
 
 - `add` - **Configurable default mode**: New `defaultMode` field in `defender.yaml` controls the session-start protection level. Supported values: `"strict"` (default, same as before), `"patterns"` (Patterns only), `"off"` (Disable Defender). When set, the session-start selector highlights the configured default and the fallback (no-UI / catch) path uses it. Without this field, behavior is unchanged — strict mode ON.
 

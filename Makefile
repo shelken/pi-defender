@@ -49,7 +49,8 @@ publish:
 		echo "🏷️  Version bumped: $$newver"
 	git push origin master --follow-tags
 	@echo "🚀 Pushed to GitHub"
-	npm publish
+	@ACCESS_FLAG=$$(node -e "console.log(require('./package.json').name.startsWith('@')?'--access public':'')"); \
+		npm publish $$ACCESS_FLAG
 	@echo "📦 Published to npm"
 	@tag=$$(git describe --tags --abbrev=0); \
 		notes_file=$$(mktemp); \

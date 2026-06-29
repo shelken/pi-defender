@@ -72,24 +72,30 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("session_start", async (_event, ctx) => {
     const loaded = getLoadedConfig(ctx.cwd);
+    const defaultMode = loaded.config.defaultMode;
 
     if (!ctx.hasUI || typeof ctx.ui?.custom !== "function") {
-      // No UI — default to strict mode ON with table notification
-      strictMode = true;
+      // No UI — apply defaultMode if set, otherwise strict
+      const useStrict = defaultMode !== "patterns" && defaultMode !== "off";
+      strictMode = useStrict;
+      defenderDisabled = defaultMode === "off";
       ctx.ui.notify(
-        formatConfigTable(loaded, DEFENDER_VERSION, true, false, getFg(), getDimAnsi()),
+        formatConfigTable(loaded, DEFENDER_VERSION, useStrict, defaultMode === "off", getFg(), getDimAnsi()),
         "info",
       );
       return;
     }
 
     try {
+      const initialIndex = defaultMode === "patterns" ? 1 : defaultMode === "off" ? 2 : 0;
+      const defaultChoice = defaultMode ?? "strict";
+
       const result = await ctx.ui.custom(
         (_tui: any, theme: any, _kb: any, done: (value: string) => void) => {
           savedTheme = theme;
-          let selectedIndex = 0;
+          let selectedIndex = initialIndex;
           const options = [
-            { value: "strict", label: "🔒 Strict Mode ON (recommended)", desc: "Every bash command goes through filtering or approval" },
+            { value: "strict", label: defaultMode === "strict" ? "🔒 Strict Mode ON (configured default)" : "🔒 Strict Mode ON (recommended)", desc: "Every bash command goes through filtering or approval" },
             { value: "patterns", label: "🛡️ Patterns only", desc: "Only patterns.yaml blocked rules are enforced for confirmation" },
             { value: "off", label: "⚪ Disable Defender", desc: "No protection — use `/defender:strict on` to re-enable" },
           ];
@@ -149,7 +155,7 @@ export default function (pi: ExtensionAPI) {
         },
       );
 
-      const choice = (result ?? "strict") as string;
+      const choice = (result ?? defaultChoice) as string;
       if (choice === "off") {
         strictMode = false;
         defenderDisabled = true;
@@ -174,9 +180,11 @@ export default function (pi: ExtensionAPI) {
       }
     } catch {
       // Fallback if custom UI fails
-      strictMode = true;
+      const useStrict = defaultMode !== "patterns" && defaultMode !== "off";
+      strictMode = useStrict;
+      defenderDisabled = defaultMode === "off";
       ctx.ui.notify(
-        formatConfigTable(loaded, DEFENDER_VERSION, true, false, getFg(), getDimAnsi()),
+        formatConfigTable(loaded, DEFENDER_VERSION, useStrict, defaultMode === "off", getFg(), getDimAnsi()),
         "info",
       );
     }

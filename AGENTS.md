@@ -72,6 +72,7 @@ pi.on("session_shutdown") → clears cached config, aborted flag, session-approv
 - **readOnlyPaths**: read OK, write/edit blocked (system files, lockfiles)
 - **noDeletePaths**: read/write/edit OK, delete blocked (project docs)
 - **strictModeWhiteList**: regex patterns — commands matching these skip strict mode prompts
+- **defaultMode** (defender.yaml only): `"strict"` | `"patterns"` | `"off"` — controls session-start default protection level. Omitted = `"strict"`. Merged with last-defined-wins semantics across all 4 sources.
 
 ### Pattern matching (config.ts:checkCommand)
 
@@ -91,7 +92,7 @@ Returns `{ blocked, reason }`. Path-based checks return `{ blocked, reason }`.
 - `~/.pi/defender.yaml` — user rules + whitelist (NEVER overwritten)
 
 Returns `LoadedConfig`:
-- `.config` — merged `Config` from all found sources
+- `.config` — merged `Config` from all found sources (arrays concatenated, `defaultMode` last-defined wins)
 - `.sources` — per-file `FileSource[]` with `displayPath`, `found`, and per-category counts
 
 `ensurePatternsConfig(cwd)` copies the bundled defaults to global and local

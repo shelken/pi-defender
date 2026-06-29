@@ -47,6 +47,10 @@ For destructive-but-valid commands (`git push --force`, `git push --delete`, `np
 Block ALL bash tool execution and require explicit user approval for every command. Perfect when you want to review every action the agent takes.
 
 - **ON by default** — you get protection out of the box. Use `/defender:strict off` to disable.
+- **Configure default mode**: Set `defaultMode` in `.pi/defender.yaml` to change the session-start default:
+  - `"strict"` (default) — Strict Mode ON
+  - `"patterns"` — Patterns only (no strict mode prompts)
+  - `"off"` — Disable Defender entirely
 - **Selector UI**: Arrow-key navigable selector with 5 options per command:
   - ✅ **Approve** — run this command once
   - ⚠️ **Deny (try something else)** — block this command, agent can try alternative approach
@@ -189,6 +193,8 @@ strictModeWhiteList:
   - npm\\ run\\ build
   - git\\ status
   - ls\\ -la
+
+defaultMode: strict  # "strict" | "patterns" | "off" — controls session-start default
 ```
 
 **Path pattern support:**

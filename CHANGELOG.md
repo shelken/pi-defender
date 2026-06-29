@@ -2,6 +2,10 @@
 
 All notable changes to Pi Defender will be documented in this file.
 
+## [Unreleased]
+
+- `add` - **Configurable default mode**: New `defaultMode` field in `defender.yaml` controls the session-start protection level. Supported values: `"strict"` (default, same as before), `"patterns"` (Patterns only), `"off"` (Disable Defender). When set, the session-start selector highlights the configured default and the fallback (no-UI / catch) path uses it. Without this field, behavior is unchanged — strict mode ON.
+
 ## [v1.6.4]
 
 - `fix` - **Shell-aware command chain splitting (#3)**: `splitChainCommands()` no longer naively splits on `&&`, `||`, `;` — it now tracks single-quote, double-quote, and backtick string literals, preserving chain separators inside them. Escaped separators (`\;`, `\&&`, `\||`) are also kept as literal content. Fixes false splits when multi-line inline code (e.g. `bun -e "..."`) contains semicolons or other chain separators inside quoted strings.

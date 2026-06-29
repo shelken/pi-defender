@@ -18,6 +18,7 @@ export interface Config {
   readOnlyPaths: string[];
   noDeletePaths: string[];
   strictModeWhiteList: string[];
+  defaultMode?: "strict" | "patterns" | "off";
 }
 
 /** Per-file source tracking — what each patterns.yaml contributed. */
@@ -142,6 +143,7 @@ function parseConfigFile(path: string): Config | null {
       readOnlyPaths: (raw.readOnlyPaths as string[]) || [],
       noDeletePaths: (raw.noDeletePaths as string[]) || [],
       strictModeWhiteList: (raw.strictModeWhiteList as string[]) || [],
+      defaultMode: (["strict", "patterns", "off"].includes(raw.defaultMode as string) ? raw.defaultMode : undefined) as Config["defaultMode"],
     };
   } catch {
     return null;
@@ -149,12 +151,15 @@ function parseConfigFile(path: string): Config | null {
 }
 
 function mergeConfigs(...configs: Config[]): Config {
+  // defaultMode: last defined wins (later config files override earlier ones)
+  const lastDefaultMode = configs.reduce<Config["defaultMode"]>((acc, c) => c.defaultMode ?? acc, undefined);
   return {
     bashToolPatterns: configs.flatMap(c => c.bashToolPatterns),
     zeroAccessPaths: configs.flatMap(c => c.zeroAccessPaths),
     readOnlyPaths: configs.flatMap(c => c.readOnlyPaths),
     noDeletePaths: configs.flatMap(c => c.noDeletePaths),
     strictModeWhiteList: configs.flatMap(c => c.strictModeWhiteList),
+    defaultMode: lastDefaultMode,
   };
 }
 
